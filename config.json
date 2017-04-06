@@ -1,8 +1,8 @@
 {
     "localAddress":"127.0.0.1",
     "localPort": 1080,
-    "serverAddress": "52.221.230.93",
-    "serverPort": 21001,
-    "password": "ourvpn01010101",
+    "serverAddress": "127.0.0.1",
+    "serverPort": 1081,
+    "password": "shadowsocks-over-websocket",
     "method": "aes-256-cfb"
 }

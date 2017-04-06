@@ -25,6 +25,7 @@
   "dependencies": {
     "bufferutil": "^3.0.0",
     "log4js": "^1.1.1",
+    "shadowsocks": "^1.5.3",
     "ws": "^2.2.3"
   }
 }

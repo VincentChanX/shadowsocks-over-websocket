@@ -110,6 +110,12 @@ TCPRelay.prototype.bootstrap = function() {
 	this.init();
 };
 
+TCPRelay.prototype.stop = function() {
+	if (this.server) {
+		this.server.close();
+	}
+};
+
 TCPRelay.prototype.init = function() {
 	var self = this;
 	var config = self.config;
