@@ -61,7 +61,12 @@ const STAGE = {
 	5: 'STAGE_STREAM'
 };
 
+const SERVER_STATUS_INIT = 0;
+const SERVER_STATUS_RUNNING = 1;
+const SERVER_STATUS_STOPPED = 2;
+
 var globalConnectionId = 1;
+var connections = {};
 
 function parseAddressHeader(data, offset) {
 	var addressType = data.readUInt8(offset);
@@ -88,10 +93,10 @@ function parseAddressHeader(data, offset) {
 	};
 }
 
-// client <=> local <=> server <=> target
 function TCPRelay(config, isLocal, logLevel) {
 	this.isLocal = isLocal;
 	this.server = null;
+	this.status = SERVER_STATUS_INIT;
 	this.config = require('./config.json');
 	if (config) {
 		this.config = Object.assign(this.config, config);
@@ -112,15 +117,27 @@ TCPRelay.prototype.bootstrap = function() {
 
 TCPRelay.prototype.stop = function() {
 	var self = this;
+	var connId = null;
 	return new Promise(function(resolve, reject) {
 		if (self.server) {
 			self.server.close(function() {
 				resolve();
 			});
+
+			for (connId in connections) {
+				if (connections[connId]) {
+					self.isLocal ? connections[connId].destroy() : connections[connId].terminate();
+				}
+			}
+
 		} else {
 			resolve();
 		}
 	});
+};
+
+TCPRelay.prototype.getStatus = function() {
+	return this.status;
 };
 
 TCPRelay.prototype.init = function() {
@@ -139,6 +156,10 @@ TCPRelay.prototype.init = function() {
 			server.on('connection', function(connection) {
 				return self.handleConnectionByLocal(connection);
 			});
+			server.on('close', function() {
+				self.logger.info('server is closed');
+				self.status = SERVER_STATUS_STOPPED;
+			});
 			server.listen(port, address);
 		} else {
 			server = self.server = new WebSocket.Server({
@@ -153,10 +174,12 @@ TCPRelay.prototype.init = function() {
 		}
 		server.on('error', function(error) {
 			self.logger.error('an error of', self.getServerName(), 'occured', error);
+			self.status = SERVER_STATUS_STOPPED;
 			reject(error);
 		});
 		server.on('listening', function() {
 			self.logger.info(self.getServerName(), 'is listening on', address + ':' + port);
+			self.status = SERVER_STATUS_RUNNING;
 			resolve();
 		});
 	});
@@ -181,6 +204,7 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 	var dataCache = [];
 
 	logger.info(`[${connectionId}]: accept connection from local`);
+	connections[connectionId] = connection;
 	connection.on('message', function(data) {
 		data = encryptor.decrypt(data);
 		logger.info(`[${connectionId}]: read data[length = ${data.length}] from local connection at stage[${STAGE[stage]}]`);
@@ -258,10 +282,13 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 	});
 	connection.on('close', function(hadError) {
 		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of connection has been triggered`);
+		connections[connectionId] = null;
+		targetConnection && targetConnection.destroy();
 	});
 	connection.on('error', function(error) {
 		logger.error(`[${connectionId}]: an error of connection occured`, error);
 		connection.terminate();
+		connections[connectionId] = null;
 		targetConnection && targetConnection.end();
 	});
 }
@@ -286,6 +313,7 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 	var dataCache = [];
 
 	logger.info(`[${connectionId}]: accept connection from client`);
+	connections[connectionId] = connection;
 	connection.setKeepAlive(true, 10000);
 	connection.on('data', function(data) {
 		logger.info(`[${connectionId}]: read data[length = ${data.length}] from client connection at stage[${STAGE[stage]}]`);
@@ -389,12 +417,15 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of client connection has been triggered`);
 		stage = STAGE_DESTROYED;
 		canWriteToLocalConnection = false;
+		connections[connectionId] = null;
+		serverConnection && serverConnection.terminate();
 	});
 	connection.on('error', function(error) {
 		logger.error(`[${connectionId}]: an error of client connection occured`, error);
 		stage = STAGE_DESTROYED;
 		connection.destroy();
 		canWriteToLocalConnection = false;
+		connections[connectionId] = null;
 		serverConnection && serverConnection.close();
 	});
 }
