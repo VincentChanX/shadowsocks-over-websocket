@@ -165,7 +165,7 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 	logger.info(`accept connection from local[${connectionId}]`);
 	connection.on('message', function(data) {
 		data = encryptor.decrypt(data);
-		logger.info(`read data[${data.length}] from local connection[${connectionId}] at stage[${STAGE[stage]}]`);
+		logger.info(`read data[length = ${data.length}] from local connection[${connectionId}] at stage[${STAGE[stage]}]`);
 
 		switch (stage) {
 
@@ -181,7 +181,7 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 				}
 
 				logger.info(`connecting to ${addressHeader.dstAddr}:${addressHeader.dstPort}`);
-
+				stage = STAGE_CONNECTING;
 				connection.pause();
 
 				targetConnection = net.createConnection({
@@ -195,19 +195,20 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 				});
 
 				targetConnection.on('data', function(data) {
-					logger.info(`read data[${data.length}] from target connection[${connectionId}]`);
-					logger.info(`write data[${data.length}] to local connection[${connectionId}]`);
-					// targetConnection.pause();
-					canWriteToLocalConnection && connection.send(encryptor.encrypt(data), function() {
-						// targetConnection.resume();
+					logger.info(`read data[length = ${data.length}] from target connection[${connectionId}]`);
+					canWriteToLocalConnection && connection.send(encryptor.encrypt(data), {
+						binary: true
+					}, function() {
+						logger.info(`write data[length = ${data.length}] to local connection[${connectionId}]`);
 					});
 				});
-				targetConnection.setKeepAlive(true, 4000);
+				targetConnection.setKeepAlive(true, 5000);
 				targetConnection.on('end', function() {
 					connection.close();
 				});
 				targetConnection.on('error', function(error) {
 					logger.error(`an error of target connection[${connectionId}] occured`, error);
+					stage = STAGE_DESTROYED;
 					targetConnection.destroy();
 					connection.close();
 				});
@@ -218,20 +219,19 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 						connection.resume();
 					});
 				}
-				stage = STAGE_CONNECTING;
 				break;
 
 			case STAGE_STREAM:
 				connection.pause();
 				canWriteToLocalConnection && targetConnection.write(data, function() {
-					logger.info(`write data[${data.length}] to target connection[${connectionId}]`);
+					logger.info(`write data[length = ${data.length}] to target connection[${connectionId}]`);
 					connection.resume();
 				});
 				break;
 		}
 	});
 	connection.on('close', function(hadError) {
-		logger.info(`close event[${hadError}] of connection[${connectionId}] has been triggered`);
+		logger.info(`close event[had error = ${hadError}] of connection[${connectionId}] has been triggered`);
 		canWriteToLocalConnection = false;
 	});
 	connection.on('error', function(error) {
@@ -265,7 +265,7 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 	logger.info(`accept connection from client[${connectionId}]`);
 	connection.setKeepAlive(true, 10000);
 	connection.on('data', function(data) {
-		logger.info(`read data[${data.length}] from client connection[${connectionId}] at stage[${STAGE[stage]}]`);
+		logger.info(`read data[length = ${data.length}] from client connection[${connectionId}] at stage[${STAGE[stage]}]`);
 		switch (stage) {
 
 			case STAGE_INIT:
@@ -292,61 +292,66 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 				//only supports connect cmd
 				if (cmd != CMD_CONNECT) {
 					logger.error('only supports connect cmd');
+					stage = STAGE_DESTROYED;
 					return connection.end("\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00");
 				}
 
 				logger.info(`connecting to ${addressHeader.dstAddr}:${addressHeader.dstPort}`);
 				connection.write("\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00");
 
+				stage = STAGE_CONNECTING;
 				connection.pause();
 
 				serverConnection = new WebSocket('ws://' + serverAddress + ':' + serverPort, {
-					perMessageDeflate: true
+					perMessageDeflate: false
 				});
 				serverConnection.on('open', function() {
 					logger.info(`connecting to websocket server[${connectionId}]`);
 					serverConnection.send(encryptor.encrypt(data.slice(3)), function() {
-						connection.resume();
 						stage = STAGE_STREAM;
+						connection.resume();
 					});
 				});
 				serverConnection.on('message', function(data) {
-					logger.info(`read data[${data.length}] from websocket server connection[${connectionId}]`);
-					logger.info(`write data[${data.length}] to client connection[${connectionId}]`);
-					// serverConnection.pause();
+					logger.info(`read data[length = ${data.length}] from websocket server connection[${connectionId}]`);
 					canWriteToLocalConnection && connection.write(encryptor.decrypt(data), function() {
-						// serverConnection.resume();
+						logger.info(`write data[length = ${data.length}] to client connection[${connectionId}]`);
 					});
 				});
 				serverConnection.on('error', function(error) {
 					logger.error(`an error of server connection[${connectionId}] occured`, error);
+					stage = STAGE_DESTROYED;
 					connection.end();
 				});
 				serverConnection.on('close', function() {
+					stage = STAGE_DESTROYED;
 					connection.end();
 				});
-
-				stage = STAGE_CONNECTING;
 				break;
 
 			case STAGE_STREAM:
 				connection.pause();
-				canWriteToLocalConnection && serverConnection.send(encryptor.encrypt(data), function() {
-					logger.info(`write data[${data.length}] to websocket server connection[${connectionId}]`);
+				canWriteToLocalConnection && serverConnection.send(encryptor.encrypt(data), {
+					binary: true
+				}, function() {
+					logger.info(`write data[length = ${data.length}] to websocket server connection[${connectionId}]`);
 					connection.resume();
 				});
 				break;
 		}
 	});
 	connection.on('end', function() {
+		stage = STAGE_DESTROYED;
 		logger.info(`end event of client connection[$connectionId] has been triggered`);
 	});
 	connection.on('close', function(hadError) {
-		logger.info(`close event[${hadError}] of client connection[${connectionId}] has been triggered`);
+		logger.info(`close event[had error = ${hadError}] of client connection[${connectionId}] has been triggered`);
+		stage = STAGE_DESTROYED;
 		canWriteToLocalConnection = false;
 	});
 	connection.on('error', function(error) {
 		logger.error(`an error of client connection[${connectionId}] occured`, error);
+		stage = STAGE_DESTROYED;
 		connection.destroy();
 		canWriteToLocalConnection = false;
 		serverConnection && serverConnection.close();

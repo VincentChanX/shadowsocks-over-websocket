@@ -1,4 +1,6 @@
-const {TCPRelay} = require('./tcprelay');
+const {
+    TCPRelay
+} = require('./tcprelay');
 new TCPRelay({
     localAddress: '127.0.0.1',
     localPort: 1080,
