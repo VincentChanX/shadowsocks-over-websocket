@@ -8,7 +8,7 @@
 * [Heroku](https://signup.heroku.com/) 注册
 * [GitHub](https://github.com/join?source=header-home) 注册
 
-### 2.Fork[本项目](https://github.com/VincentChanX/shadowsocks-over-websocket)到个人账号下
+### 2.Fork [本项目](https://github.com/VincentChanX/shadowsocks-over-websocket) 到个人账号下
 ![1](./imgs/1.jpg)
 进入 <https://github.com/VincentChanX/shadowsocks-over-websocket> 页面  ==>  Fork
 
@@ -72,7 +72,7 @@ Setting 页面 ==> Reveal Config Vars
 
 
 ## Chrome 浏览器配置
-1. 下载 [Chrome](http://www.google.cn/chrome/browser/desktop/index.html) 浏览器插件 [SwitchyOmega](https://github.com/VincentChanX/shadowsocks-over-websocket/tree/master/extensions/SwitchyOmega.crx)
+1. 下载 [Chrome](http://www.google.cn/chrome/browser/desktop/index.html) 浏览器插件 [SwitchyOmega](https://github.com/VincentChanX/shadowsocks-over-websocket/raw/master/extensions/SwitchyOmega.crx)
 
 2. 安装 SwitchyOmega 插件：打开浏览器的扩展程序页面 [chrome://extensions](chrome://extensions)，把SwitchyOmega.crx文件拖放到浏览器扩展程序页面安装
 
