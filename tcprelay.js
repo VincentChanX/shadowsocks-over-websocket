@@ -107,47 +107,57 @@ TCPRelay.prototype.getServerName = function() {
 
 
 TCPRelay.prototype.bootstrap = function() {
-	this.init();
+	return this.init();
 };
 
 TCPRelay.prototype.stop = function() {
-	if (this.server) {
-		this.server.close();
-	}
+	return new Promise(function(resolve, reject) {
+		if (this.server) {
+			this.server.close(function() {
+				resolve();
+			});
+		} else {
+			resolve();
+		}
+	});
 };
 
 TCPRelay.prototype.init = function() {
-	var self = this;
-	var config = self.config;
-	var port = self.isLocal ? config.localPort : config.serverPort;
-	var address = self.isLocal ? config.localAddress : config.serverAddress;
-	var server;
+	return new Promise(function(resolve, reject) {
+		var self = this;
+		var config = self.config;
+		var port = self.isLocal ? config.localPort : config.serverPort;
+		var address = self.isLocal ? config.localAddress : config.serverAddress;
+		var server;
 
-	if (self.isLocal) {
-		server = self.server = net.createServer({
-			allowHalfOpen: true,
+		if (self.isLocal) {
+			server = self.server = net.createServer({
+				allowHalfOpen: true,
+			});
+			server.maxConnections = MAX_CONNECTIONS;
+			server.on('connection', function(connection) {
+				return self.handleConnectionByLocal(connection);
+			});
+			server.listen(port, address);
+		} else {
+			server = self.server = new WebSocket.Server({
+				host: address,
+				port: port,
+				perMessageDeflate: false,
+				backlog: MAX_CONNECTIONS
+			});
+			server.on('connection', function(connection) {
+				return self.handleConnectionByServer(connection);
+			});
+		}
+		server.on('error', function(error) {
+			self.logger.error('an error of', self.getServerName(), 'occured', error);
+			reject(error);
 		});
-		server.maxConnections = MAX_CONNECTIONS;
-		server.on('connection', function(connection) {
-			return self.handleConnectionByLocal(connection);
+		server.on('listening', function() {
+			self.logger.info(self.getServerName(), 'is listening on', address + ':' + port);
+			resolve();
 		});
-		server.listen(port, address);
-	} else {
-		server = self.server = new WebSocket.Server({
-			host: address,
-			port: port,
-			perMessageDeflate: false,
-			backlog: MAX_CONNECTIONS
-		});
-		server.on('connection', function(connection) {
-			return self.handleConnectionByServer(connection);
-		});
-	}
-	server.on('error', function(error) {
-		self.logger.error('an error of', self.getServerName(), 'occured', error);
-	});
-	server.on('listening', function() {
-		self.logger.info(self.getServerName(), 'is listening on', address + ':' + port);
 	});
 };
 
