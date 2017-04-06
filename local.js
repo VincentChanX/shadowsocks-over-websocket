@@ -2,7 +2,7 @@ const TCPRelay = require('./tcprelay').TCPRelay;
 const local = require('commander');
 
 local
-    .version('0.1.0')
+    .version('0.1.1')
     .option('-m --method [method]', 'encryption method, default: aes-256-cfb')
     .option('-k --password [password]', 'password')
     .option('-s --server-address [address]', 'server address')
