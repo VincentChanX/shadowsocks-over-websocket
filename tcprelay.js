@@ -111,9 +111,10 @@ TCPRelay.prototype.bootstrap = function() {
 };
 
 TCPRelay.prototype.stop = function() {
+	var self = this;
 	return new Promise(function(resolve, reject) {
-		if (this.server) {
-			this.server.close(function() {
+		if (self.server) {
+			self.server.close(function() {
 				resolve();
 			});
 		} else {
@@ -123,8 +124,8 @@ TCPRelay.prototype.stop = function() {
 };
 
 TCPRelay.prototype.init = function() {
+	var self = this;
 	return new Promise(function(resolve, reject) {
-		var self = this;
 		var config = self.config;
 		var port = self.isLocal ? config.localPort : config.serverPort;
 		var address = self.isLocal ? config.localAddress : config.serverAddress;
