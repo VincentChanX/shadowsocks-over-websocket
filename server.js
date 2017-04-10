@@ -16,7 +16,7 @@ server
     .parse(process.argv);
 
 throng({
-    workers: process.env.WEB_CONCURRENCY || 2,
+    workers: process.env.WEB_CONCURRENCY || 1,
     master: startMaster,
     start: startWorker
 });

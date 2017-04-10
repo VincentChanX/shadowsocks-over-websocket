@@ -72,6 +72,7 @@ var connections = {};
 function parseAddressHeader(data, offset) {
 	var addressType = data.readUInt8(offset);
 	var headerLen, dstAddr, dstPort, dstAddrLen;
+	//domain name
 	if (addressType == ADDRESS_TYPE_DOMAIN_NAME) {
 		dstAddrLen = data.readUInt8(offset + 1);
 		dstAddr = data.slice(offset + 2, offset + 2 + dstAddrLen).toString();
@@ -295,12 +296,12 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 		return connection.pong('', false, true);
 	});
 	connection.on('close', function(hadError) {
-		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of connection has been triggered`);
+		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of local connection has been triggered`);
 		connections[connectionId] = null;
 		targetConnection && targetConnection.destroy();
 	});
 	connection.on('error', function(error) {
-		logger.error(`[${connectionId}]: an error of connection occured`, error);
+		logger.error(`[${connectionId}]: an error of connection local occured`, error);
 		connection.terminate();
 		connections[connectionId] = null;
 		targetConnection && targetConnection.end();
@@ -370,7 +371,7 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 					perMessageDeflate: false
 				});
 				serverConnection.on('open', function() {
-					logger.info(`[${connectionId}]: connecting to websocket server`);
+					logger.info(`[${connectionId}]: connecting to server`);
 					serverConnection.send(encryptor.encrypt(data.slice(3)), function() {
 						stage = STAGE_STREAM;
 						dataCache = Buffer.concat(dataCache);
@@ -387,7 +388,7 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 					}, 30000);
 				});
 				serverConnection.on('message', function(data) {
-					logger.debug(`[${connectionId}]: read data[length = ${data.length}] from websocket server connection`);
+					logger.debug(`[${connectionId}]: read data[length = ${data.length}] from server connection`);
 					canWriteToLocalConnection && connection.write(encryptor.decrypt(data), function() {
 						logger.debug(`[${connectionId}]: write data[length = ${data.length}] to client connection`);
 					});
@@ -418,7 +419,7 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 				canWriteToLocalConnection && serverConnection.send(encryptor.encrypt(data), {
 					binary: true
 				}, function() {
-					logger.debug(`[${connectionId}]: write data[length = ${data.length}] to websocket server connection`);
+					logger.debug(`[${connectionId}]: write data[length = ${data.length}] to server connection`);
 				});
 				break;
 		}
