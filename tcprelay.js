@@ -3,6 +3,7 @@ const path = require('path');
 const log4js = require('log4js');
 const WebSocket = require('ws');
 const Encryptor = require('shadowsocks/lib/shadowsocks/encrypt').Encryptor;
+const WSErrorCode = require('ws/lib/ErrorCodes');
 
 const MAX_CONNECTIONS = 50000;
 
@@ -265,8 +266,14 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 						});
 					}
 				});
-				targetConnection.setKeepAlive(true, 5000);
 				targetConnection.on('end', function() {
+					logger.info(`[${connectionId}]: end event of target connection has been triggered`);
+					stage = STAGE_DESTROYED;
+					connection.close();
+				});
+				targetConnection.on('close', function(hadError) {
+					logger.info(`[${connectionId}]: close event[had error = ${hadError}] of target connection has been triggered`);
+					stage = STAGE_DESTROYED;
 					connection.close();
 				});
 				targetConnection.on('error', function(error) {
@@ -292,11 +299,8 @@ TCPRelay.prototype.handleConnectionByServer = function(connection) {
 				break;
 		}
 	});
-	connection.on('ping', function() {
-		return connection.pong('', false, true);
-	});
-	connection.on('close', function(hadError) {
-		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of local connection has been triggered`);
+	connection.on('close', function(code, reason) {
+		logger.info(`[${connectionId}]: close event[code = '${WSErrorCode[code]}'] of local connection has been triggered`);
 		connections[connectionId] = null;
 		targetConnection && targetConnection.destroy();
 	});
@@ -322,14 +326,14 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 
 	var stage = STAGE_INIT;
 	var connectionId = (globalConnectionId++) % MAX_CONNECTIONS;
-	var serverConnection, cmd, addressHeader, ping;
+	var serverConnection, cmd, addressHeader;
 
 	var canWriteToLocalConnection = true;
 	var dataCache = [];
 
 	logger.info(`[${connectionId}]: accept connection from client`);
 	connections[connectionId] = connection;
-	connection.setKeepAlive(true, 10000);
+	connection.setKeepAlive(false);
 	connection.on('data', function(data) {
 		logger.debug(`[${connectionId}]: read data[length = ${data.length}] from client connection at stage[${STAGE[stage]}]`);
 		switch (stage) {
@@ -382,10 +386,6 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 							dataCache = null;
 						});
 					});
-
-					ping = setInterval(function() {
-						serverConnection.ping('', false, true);
-					}, 30000);
 				});
 				serverConnection.on('message', function(data) {
 					logger.debug(`[${connectionId}]: read data[length = ${data.length}] from server connection`);
@@ -394,14 +394,12 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 					});
 				});
 				serverConnection.on('error', function(error) {
-					ping && clearInterval(ping);
 					logger.error(`[${connectionId}]: an error of server connection occured`, error);
 					stage = STAGE_DESTROYED;
 					connection.end();
 				});
-				serverConnection.on('close', function() {
-					logger.info(`[${connectionId}]: server connection is closed`);
-					ping && clearInterval(ping);
+				serverConnection.on('close', function(code, reason) {
+					logger.info(`[${connectionId}]: close event[code = '${WSErrorCode[code]}'] of server connection has been triggered`);
 					stage = STAGE_DESTROYED;
 					connection.end();
 				});
@@ -425,8 +423,8 @@ TCPRelay.prototype.handleConnectionByLocal = function(connection) {
 		}
 	});
 	connection.on('end', function() {
-		stage = STAGE_DESTROYED;
 		logger.info(`[${connectionId}]: end event of client connection has been triggered`);
+		stage = STAGE_DESTROYED;
 	});
 	connection.on('close', function(hadError) {
 		logger.info(`[${connectionId}]: close event[had error = ${hadError}] of client connection has been triggered`);
