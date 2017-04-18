@@ -1,0 +1,8 @@
+.dockerignore
+.git
+Dockerfile
+test
+imgs
+extensions
+LICENSE
+README.md
