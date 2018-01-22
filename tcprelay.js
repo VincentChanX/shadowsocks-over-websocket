@@ -109,6 +109,7 @@ function TCPRelay(config, isLocal) {
 		}
 		this.config = Object.assign(this.config, config);
 	}
+	// console.log(this.config)
 	this.logger = null;
 	this.logLevel = 'error';
 	this.logFile = null;
