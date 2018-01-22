@@ -1,8 +1,8 @@
 {
     "localAddress":"127.0.0.1",
-    "localPort": 1080,
+    "localPort": 1210,
     "serverAddress": "127.0.0.1",
-    "serverPort": 8388,
+    "serverPort": 80,
     "password": "shadowsocks-over-websocket",
     "method": "aes-256-cfb"
 }

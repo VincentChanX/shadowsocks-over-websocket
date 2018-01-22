@@ -102,8 +102,14 @@ function TCPRelay(config, isLocal) {
 	this.status = SERVER_STATUS_INIT;
 	this.config = require('./config.json');
 	if (config) {
+		for(i in config){
+			if(!config[i]){
+				delete config[i]
+			}
+		}
 		this.config = Object.assign(this.config, config);
 	}
+	// console.log(this.config)
 	this.logger = null;
 	this.logLevel = 'error';
 	this.logFile = null;
