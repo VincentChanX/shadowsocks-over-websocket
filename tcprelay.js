@@ -179,6 +179,9 @@ TCPRelay.prototype.initServer = function() {
 				});
 				server.on('error', function(error) {
 					self.logger.fatal('an error of', self.getServerName(), 'occured', error);
+					server.close(function() {
+						resolve();
+					});
 					localServe();
 				});
 				server.listen(port, address);
