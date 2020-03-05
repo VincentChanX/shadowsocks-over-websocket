@@ -165,23 +165,25 @@ TCPRelay.prototype.initServer = function() {
 		var server;
 
 		if (self.isLocal) {
-			server = self.server = net.createServer({
-				allowHalfOpen: true,
-			});
-			server.maxConnections = MAX_CONNECTIONS;
-			server.on('connection', function(connection) {
-				return self.handleConnectionByLocal(connection);
-			});
-			server.on('close', function() {
-				self.logger.info('server is closed');
-				self.status = SERVER_STATUS_STOPPED;
-			});
-			server.on('error', function(error) {
-				self.logger.fatal('an error of', self.getServerName(), 'occured', error);
+			function localServe() {
+				server = self.server = net.createServer({
+					allowHalfOpen: true,
+				});
+				server.maxConnections = MAX_CONNECTIONS;
+				server.on('connection', function(connection) {
+					return self.handleConnectionByLocal(connection);
+				});
+				server.on('close', function() {
+					self.logger.info('server is closed');
+					self.status = SERVER_STATUS_STOPPED;
+				});
+				server.on('error', function(error) {
+					self.logger.fatal('an error of', self.getServerName(), 'occured', error);
+					localServe();
+				});
 				server.listen(port, address);
-			});
-			server.listen(port, address);
-			
+			};
+			localServe();		
 		} else {
 			server = self.server = new WebSocket.Server({
 				host: address,
