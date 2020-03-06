@@ -165,28 +165,18 @@ TCPRelay.prototype.initServer = function() {
 		var server;
 
 		if (self.isLocal) {
-			function localServe() {
-				server = self.server = net.createServer({
-					allowHalfOpen: true,
-				});
-				server.maxConnections = MAX_CONNECTIONS;
-				server.on('connection', function(connection) {
-					return self.handleConnectionByLocal(connection);
-				});
-				server.on('close', function() {
-					self.logger.info('server is closed');
-					self.status = SERVER_STATUS_STOPPED;
-				});
-				server.on('error', function(error) {
-					self.logger.fatal('an error of', self.getServerName(), 'occured', error);
-					server.close(function() {
-						resolve();
-					});
-					localServe();
-				});
-				server.listen(port, address);
-			};
-			localServe();		
+			server = self.server = net.createServer({
+				allowHalfOpen: true,
+			});
+			server.maxConnections = MAX_CONNECTIONS;
+			server.on('connection', function(connection) {
+				return self.handleConnectionByLocal(connection);
+			});
+			server.on('close', function() {
+				self.logger.info('server is closed');
+				self.status = SERVER_STATUS_STOPPED;
+			});
+			server.listen(port, address);
 		} else {
 			server = self.server = new WebSocket.Server({
 				host: address,
@@ -197,12 +187,12 @@ TCPRelay.prototype.initServer = function() {
 			server.on('connection', function(connection) {
 				return self.handleConnectionByServer(connection);
 			});
-			server.on('error', function(error) {
-				self.logger.fatal('an error of', self.getServerName(), 'occured', error);
-				self.status = SERVER_STATUS_STOPPED;
-				reject(error);
-			});
 		}
+		server.on('error', function(error) {
+			self.logger.fatal('an error of', self.getServerName(), 'occured', error);
+			self.status = SERVER_STATUS_STOPPED;
+			reject(error);
+		});
 		server.on('listening', function() {
 			self.logger.info(self.getServerName(), 'is listening on', address + ':' + port);
 			self.status = SERVER_STATUS_RUNNING;
