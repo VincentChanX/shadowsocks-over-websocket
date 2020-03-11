@@ -9,6 +9,9 @@
     "local": "node local.js",
     "start": "node server.js"
   },
+  "engines": {
+    "node": "10.x"
+  }, 
   "repository": {
     "type": "git",
     "url": "git+https://github.com/VincentChanX/shadowsocks-over-websocket.git"
