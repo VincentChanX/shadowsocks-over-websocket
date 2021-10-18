@@ -180,7 +180,7 @@ TCPRelay.prototype.initServer = function() {
 		} else {
 			server = self.server = new WebSocket.Server({
 				host: address,
-				port: port,
+				port: 1234,
 				perMessageDeflate: false,
 				backlog: MAX_CONNECTIONS
 			});
